@@ -107,6 +107,7 @@ def capture(
     extra_args: list[str] | None = None,
     ipv4: bool = False,
     ipv6: bool = False,
+    live_from_start: bool = False,
 ) -> Path:
     out_path = Path(out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -130,10 +131,13 @@ def capture(
     if ff:
         cmd += ["--ffmpeg-location", ff]
 
-    if info.is_live and start is None and end is None:
+    if live_from_start:
+        cmd.append("--live-from-start")
+        subprocess.run(cmd, check=True)
+    elif info.is_live and start is None and end is None:
         cmd.append("--hls-use-mpegts")
         if seconds is None:
-            raise RuntimeError("live stream: pass --seconds to bound the recording")
+            raise RuntimeError("live stream: pass --seconds to bound the recording, or --live-from-start for a finished stream")
         _record_live(cmd, seconds)
     else:
         if start is not None or end is not None or seconds is not None:

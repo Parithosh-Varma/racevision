@@ -36,6 +36,7 @@ def build_parser() -> argparse.ArgumentParser:
     pc.add_argument("--quality", type=int, default=720)
     pc.add_argument("--format", dest="format", help="override yt-dlp -f format selector")
     pc.add_argument("--no-audio", action="store_true", help="video only; avoids live audio muxing (no ffmpeg network fetch)")
+    pc.add_argument("--live-from-start", action="store_true", help="download a live/post-live stream from the beginning (no --seconds needed)")
     pc.add_argument("--extractor-args", action="append", default=[], metavar="ARGS",
                     help="yt-dlp --extractor-args value, e.g. 'youtube:player_client=tv' (repeatable)")
     pc.add_argument("--downloader-args", action="append", default=[], metavar="ARGS",
@@ -89,6 +90,7 @@ def main(argv: list[str] | None = None) -> None:
             extra_args=extra,
             ipv4=args.ipv4,
             ipv6=args.ipv6,
+            live_from_start=args.live_from_start,
         )
         print(f"saved: {path}")
 
