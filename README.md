@@ -11,25 +11,34 @@ overlay video.
 
 ## Install
 
+Requires **Python 3.10+** (3.12 recommended). Live YouTube capture also needs
+[Deno](https://deno.land) and a current yt-dlp.
+
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+pip install -e .
+pip install -U "yt-dlp[default]"
+brew install deno            # macOS; or: curl -fsSL https://deno.land/install.sh | sh
 ```
 
-`ffmpeg` is required for stream merging. If it is not on your PATH, the bundled
+`capture` is available as the `racevision` command or `python -m racevision`.
+`ffmpeg` is required for stream muxing; if it is not on your PATH, the bundled
 binary from `imageio-ffmpeg` is used automatically.
 
 ## Quick start
 
 ```bash
 # 1. inspect a stream
-python -m racevision probe "https://www.youtube.com/watch?v=k3O8Zjp_1bw"
+racevision probe "https://www.youtube.com/watch?v=k3O8Zjp_1bw"
 
-# 2. grab a clip (VOD section, or live for N seconds)
-python -m racevision capture "https://www.youtube.com/watch?v=k3O8Zjp_1bw" -o pov.mp4 --seconds 120
+# 2. grab a live clip (see the 403 section below for the required flags)
+racevision capture "https://www.youtube.com/watch?v=k3O8Zjp_1bw" -o pov.mp4 --seconds 120 \
+  --cookies-from-browser brave --no-audio \
+  --extractor-args "youtube:player_js_version=actual" \
+  --ytdlp-arg=--js-runtimes --ytdlp-arg deno
 
 # 3. analyze the onboard POV
-python -m racevision analyze pov.mp4 -o pov.csv --plot pov.png --overlay pov_overlay.mp4
+racevision analyze pov.mp4 -o pov.csv --plot pov.png --overlay pov_overlay.mp4
 ```
 
 ## YouTube bot check
@@ -38,7 +47,7 @@ Datacenter / fresh IPs often get `Sign in to confirm you're not a bot`. Pass
 your own browser cookies (do this on the machine where you are signed in):
 
 ```bash
-python -m racevision capture "<url>" -o pov.mp4 --seconds 120 --cookies-from-browser chrome
+racevision capture "<url>" -o pov.mp4 --seconds 120 --cookies-from-browser brave
 # or export cookies to a file and use: --cookies cookies.txt
 ```
 
@@ -46,27 +55,39 @@ Use `--cookies-from-browser` with `chrome`, `firefox`, `edge`, `brave`, etc.
 
 ## Live stream `HTTP error 403 Forbidden`
 
-If capture starts then ffmpeg floods `403 Forbidden` on `googlevideo.com` segments,
-yt-dlp resolved the stream but ffmpeg failed to fetch fragments. Try, in order:
+YouTube requires a JS runtime (a "PO Token"/JS-challenge) for live streams, and
+yt-dlp's fallbacks otherwise 403 on the `googlevideo` segments. **The working
+recipe** is to install [Deno](https://deno.land) and pass the JS runtime:
 
 ```bash
-# 1. video-only: no audio muxing, so yt-dlp's native downloader fetches fragments
-python -m racevision capture "<url>" -o pov.mp4 --seconds 120 --cookies-from-browser brave --no-audio
+brew install deno   # or: curl -fsSL https://deno.land/install.sh | sh
 
-# 2. force IPv4 (signed URLs are IP-bound; IPv4/IPv6 mismatch causes 403)
-python -m racevision capture "<url>" -o pov.mp4 --seconds 120 --cookies-from-browser brave -4
-
-# 3. pin the extracting client
-python -m racevision capture "<url>" -o pov.mp4 --seconds 120 --cookies-from-browser brave \
-    --ytdlp-arg "--extractor-args" --ytdlp-arg "youtube:player_client=web"
-
-# 4. inspect formats, then pick one explicitly
-python -m racevision probe "<url>" --cookies-from-browser brave -4
-python -m racevision capture "<url>" -o pov.mp4 --seconds 120 --cookies-from-browser brave -4 --format bv*[height<=720]
+racevision capture "<url>" -o pov.mp4 --seconds 120 \
+  --cookies-from-browser brave --no-audio \
+  --extractor-args "youtube:player_js_version=actual" \
+  --ytdlp-arg=--js-runtimes --ytdlp-arg deno
 ```
 
-`--ytdlp-arg` passes any raw flag to yt-dlp (repeatable). Run capture with `--no-audio`
-for analysis — the tool only reads video frames.
+Also ensure you're on the latest yt-dlp (`pip install -U "yt-dlp[default]"`) and
+Python 3.10+ (3.9 mishandles the TLS/JS challenge).
+
+If it still 403s, try these in order:
+
+```bash
+# video-only: no audio muxing, so yt-dlp's native downloader fetches fragments
+racevision capture "<url>" -o pov.mp4 --seconds 120 --cookies-from-browser brave --no-audio
+
+# force IPv4 (signed URLs are IP-bound; IPv4/IPv6 mismatch can cause 403)
+racevision capture "<url>" -o pov.mp4 --seconds 120 --cookies-from-browser brave --no-audio -4
+
+# pin the extracting client
+racevision capture "<url>" -o pov.mp4 --seconds 120 --cookies-from-browser brave --no-audio \
+    --extractor-args "youtube:player_client=tv"
+```
+
+`--ytdlp-arg` passes any raw flag to yt-dlp; use `--ytdlp-arg=--flag` (with `=`)
+when the value itself starts with a dash. Run capture with `--no-audio` for
+analysis — the tool only reads video frames.
 
 ## Commands
 
