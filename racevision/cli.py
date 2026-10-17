@@ -15,6 +15,13 @@ def _add_auth(p: argparse.ArgumentParser) -> None:
     p.add_argument("--cookies-from-browser", help="e.g. chrome, firefox, edge, brave")
 
 
+def _add_network(p: argparse.ArgumentParser) -> None:
+    p.add_argument("-4", "--ipv4", action="store_true", help="force IPv4 (fixes googlevideo 403)")
+    p.add_argument("-6", "--ipv6", action="store_true", help="force IPv6")
+    p.add_argument("--ytdlp-arg", dest="ytdlp_args", action="append", default=[],
+                   metavar="ARG", help="extra raw yt-dlp argument (repeatable)")
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="racevision", description="Collect race data from stream URLs")
     p.add_argument("--version", action="version", version=f"racevision {__version__}")
@@ -27,11 +34,15 @@ def build_parser() -> argparse.ArgumentParser:
     pc.add_argument("--start", type=float, help="section start (seconds)")
     pc.add_argument("--end", type=float, help="section end (seconds)")
     pc.add_argument("--quality", type=int, default=720)
+    pc.add_argument("--format", dest="format", help="override yt-dlp -f format selector")
+    pc.add_argument("--no-audio", action="store_true", help="video only; avoids live audio muxing (no ffmpeg network fetch)")
     _add_auth(pc)
+    _add_network(pc)
 
     pp = sub.add_parser("probe", help="print stream metadata as JSON")
     pp.add_argument("url")
     _add_auth(pp)
+    _add_network(pp)
 
     pa = sub.add_parser("analyze", help="driver-behavior analysis of a POV video")
     pa.add_argument("video")
@@ -50,7 +61,8 @@ def main(argv: list[str] | None = None) -> None:
     args = build_parser().parse_args(argv)
 
     if args.cmd == "probe":
-        info = probe(args.url, args.cookies, args.cookies_from_browser)
+        info = probe(args.url, args.cookies, args.cookies_from_browser,
+                     args.ytdlp_args, args.ipv4, args.ipv6)
         print(json.dumps(info.__dict__, indent=2))
 
     elif args.cmd == "capture":
@@ -63,6 +75,11 @@ def main(argv: list[str] | None = None) -> None:
             quality=args.quality,
             cookies=args.cookies,
             cookies_from_browser=args.cookies_from_browser,
+            fmt=args.format,
+            no_audio=args.no_audio,
+            extra_args=args.ytdlp_args,
+            ipv4=args.ipv4,
+            ipv6=args.ipv6,
         )
         print(f"saved: {path}")
 

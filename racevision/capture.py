@@ -53,8 +53,17 @@ def probe(
     url: str,
     cookies: str | None = None,
     cookies_from_browser: str | None = None,
+    extra_args: list[str] | None = None,
+    ipv4: bool = False,
+    ipv6: bool = False,
 ) -> Probe:
-    cmd = ytdlp_prefix() + ["-J", "--no-warnings"] + _auth_args(cookies, cookies_from_browser) + [url]
+    cmd = ytdlp_prefix() + ["-J", "--no-warnings"]
+    if ipv4:
+        cmd.append("-4")
+    if ipv6:
+        cmd.append("-6")
+    cmd += extra_args or []
+    cmd += _auth_args(cookies, cookies_from_browser) + [url]
     out = subprocess.run(cmd, capture_output=True, text=True)
     if out.returncode != 0:
         raise RuntimeError(out.stderr.strip() or "yt-dlp probe failed")
@@ -93,15 +102,30 @@ def capture(
     cookies: str | None = None,
     cookies_from_browser: str | None = None,
     ffmpeg: str | None = None,
+    fmt: str | None = None,
+    no_audio: bool = False,
+    extra_args: list[str] | None = None,
+    ipv4: bool = False,
+    ipv6: bool = False,
 ) -> Path:
     out_path = Path(out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     ff = ffmpeg or find_ffmpeg()
 
-    info = probe(url, cookies, cookies_from_browser)
+    info = probe(url, cookies, cookies_from_browser, extra_args, ipv4, ipv6)
 
-    fmt = f"bv*[height<={quality}]+ba/b[height<={quality}]/b[height<={quality}]/b"
+    if fmt is None:
+        if no_audio:
+            fmt = f"bv*[height<={quality}]/b[height<={quality}]/b"
+        else:
+            fmt = f"bv*[height<={quality}]+ba/b[height<={quality}]/b"
+
     cmd = ytdlp_prefix() + [url, "-f", fmt, "-o", str(out_path), "--no-part", "--newline"]
+    if ipv4:
+        cmd.append("-4")
+    if ipv6:
+        cmd.append("-6")
+    cmd += extra_args or []
     cmd += _auth_args(cookies, cookies_from_browser)
     if ff:
         cmd += ["--ffmpeg-location", ff]

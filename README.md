@@ -44,6 +44,30 @@ python -m racevision capture "<url>" -o pov.mp4 --seconds 120 --cookies-from-bro
 
 Use `--cookies-from-browser` with `chrome`, `firefox`, `edge`, `brave`, etc.
 
+## Live stream `HTTP error 403 Forbidden`
+
+If capture starts then ffmpeg floods `403 Forbidden` on `googlevideo.com` segments,
+yt-dlp resolved the stream but ffmpeg failed to fetch fragments. Try, in order:
+
+```bash
+# 1. video-only: no audio muxing, so yt-dlp's native downloader fetches fragments
+python -m racevision capture "<url>" -o pov.mp4 --seconds 120 --cookies-from-browser brave --no-audio
+
+# 2. force IPv4 (signed URLs are IP-bound; IPv4/IPv6 mismatch causes 403)
+python -m racevision capture "<url>" -o pov.mp4 --seconds 120 --cookies-from-browser brave -4
+
+# 3. pin the extracting client
+python -m racevision capture "<url>" -o pov.mp4 --seconds 120 --cookies-from-browser brave \
+    --ytdlp-arg "--extractor-args" --ytdlp-arg "youtube:player_client=web"
+
+# 4. inspect formats, then pick one explicitly
+python -m racevision probe "<url>" --cookies-from-browser brave -4
+python -m racevision capture "<url>" -o pov.mp4 --seconds 120 --cookies-from-browser brave -4 --format bv*[height<=720]
+```
+
+`--ytdlp-arg` passes any raw flag to yt-dlp (repeatable). Run capture with `--no-audio`
+for analysis — the tool only reads video frames.
+
 ## Commands
 
 | Command   | Purpose                                                     |
