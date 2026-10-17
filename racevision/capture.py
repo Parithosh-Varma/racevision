@@ -133,6 +133,10 @@ def capture(
 
     if live_from_start:
         cmd.append("--live-from-start")
+        if start is not None or end is not None or seconds is not None:
+            s = start if start is not None else 0.0
+            e = end if end is not None else s + (seconds or 0.0)
+            cmd += ["--download-sections", f"*{s}-{e}"]
         subprocess.run(cmd, check=True)
     elif info.is_live and start is None and end is None:
         cmd.append("--hls-use-mpegts")
