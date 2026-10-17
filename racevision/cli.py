@@ -36,6 +36,10 @@ def build_parser() -> argparse.ArgumentParser:
     pc.add_argument("--quality", type=int, default=720)
     pc.add_argument("--format", dest="format", help="override yt-dlp -f format selector")
     pc.add_argument("--no-audio", action="store_true", help="video only; avoids live audio muxing (no ffmpeg network fetch)")
+    pc.add_argument("--extractor-args", action="append", default=[], metavar="ARGS",
+                    help="yt-dlp --extractor-args value, e.g. 'youtube:player_client=tv' (repeatable)")
+    pc.add_argument("--downloader-args", action="append", default=[], metavar="ARGS",
+                    help="yt-dlp --downloader-args value (repeatable)")
     _add_auth(pc)
     _add_network(pc)
 
@@ -66,6 +70,11 @@ def main(argv: list[str] | None = None) -> None:
         print(json.dumps(info.__dict__, indent=2))
 
     elif args.cmd == "capture":
+        extra = list(args.ytdlp_args)
+        for v in args.extractor_args:
+            extra += ["--extractor-args", v]
+        for v in args.downloader_args:
+            extra += ["--downloader-args", v]
         path = capture(
             args.url,
             args.out,
@@ -77,7 +86,7 @@ def main(argv: list[str] | None = None) -> None:
             cookies_from_browser=args.cookies_from_browser,
             fmt=args.format,
             no_audio=args.no_audio,
-            extra_args=args.ytdlp_args,
+            extra_args=extra,
             ipv4=args.ipv4,
             ipv6=args.ipv6,
         )
