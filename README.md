@@ -16,7 +16,7 @@ Requires **Python 3.10+** (3.12 recommended). Live YouTube capture also needs
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
-pip install -e .
+pip install -e ".[plot]"       # [plot] adds matplotlib for --plot
 pip install -U "yt-dlp[default]"
 brew install deno            # macOS; or: curl -fsSL https://deno.land/install.sh | sh
 ```
